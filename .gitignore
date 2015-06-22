@@ -1,0 +1,11 @@
+MetadataApiCommon/obj/
+MetadataApiCommon/bin/
+MetadataApiServer.Azure/bin/
+MetadataApiServer.Azure/obj/
+MetadataApiServer.Tests/bin/
+MetadataApiServer.Tests/obj/
+MetadataApiServer/bin/
+MetadataApiServer/obj/
+Calculator/obj/
+Calculator/bin/
+MetadataApiServer/Properties/PublishProfiles/

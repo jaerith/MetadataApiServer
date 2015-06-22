@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ServiceConfiguration serviceName="MetadataApiServer.Azure" xmlns="http://schemas.microsoft.com/ServiceHosting/2008/10/ServiceConfiguration" osFamily="4" osVersion="*" schemaVersion="2015-04.2.6">
+  <Role name="MetadataApiServer">
+    <Instances count="1" />
+    <ConfigurationSettings>
+      <Setting name="Microsoft.WindowsAzure.Plugins.Diagnostics.ConnectionString" value="UseDevelopmentStorage=true" />
+      <Setting name="MetadataStorageConnectionString" value="UseDevelopmentStorage=true" />
+      <Setting name="MetadataDBConnectionString" value="user id=test;password=test;database=TEST;server=test;connection timeout=30;Pooling=false;" />
+      <Setting name="MetadataRootFileSystem" value="c:\tmp\metadata" />
+    </ConfigurationSettings>
+  </Role>
+</ServiceConfiguration>
