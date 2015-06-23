@@ -1,0 +1,26 @@
+[
+  {
+    "title" : "Read Files",
+	"nextController" : "CustomDirectoryController",
+    "numberOfLines" : 3,
+	"textColor" : "grayColor",
+	"font" : "systemFontOfSize:12",	
+	"enabled" : true,
+  },
+  {
+    "title" : "Save Files",
+	"nextController": "CustomDirectoryController",
+    "numberOfLines" : 3,
+	"textColor" : "grayColor",
+	"font" : "systemFontOfSize:12",	
+	"enabled" : true
+  },
+  {
+    "title" : "Advanced Settings",
+	"nextController": "UITableViewController",
+    "numberOfLines" : 3,
+	"textColor" : "grayColor",
+	"font" : "systemFontOfSize:12",	
+	"enabled" : false
+  }
+]

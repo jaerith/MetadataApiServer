@@ -1,0 +1,19 @@
+[
+  {
+    "title" : "Show All Files",
+    "nextController" : "AllFilesController",
+    "numberOfLines" : 3,
+    "textColor" : "grayColor",
+    "font" : "systemFontOfSize:12",	
+    "enabled" : true,
+  }
+  ,
+  {
+    "title" : "Show New Files",
+    "nextController" : "NewFilesController",
+    "numberOfLines" : 3,
+    "textColor" : "grayColor",
+    "font" : "systemFontOfSize:12",	
+    "enabled" : true,
+  }
+]
