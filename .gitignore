@@ -9,3 +9,4 @@ MetadataApiServer/obj/
 Calculator/obj/
 Calculator/bin/
 MetadataApiServer/Properties/PublishProfiles/
+MetadataApiServer.Azure/csx/Debug/

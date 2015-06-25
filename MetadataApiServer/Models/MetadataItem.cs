@@ -11,7 +11,7 @@ namespace MetadataApiServer.Models
     {
         public MetadataItem()
         {
-            Type     = Action     = Parameters = Payload = ExecutableDLL = "";
+            Type     = Action      = Parameters = Payload = ExecutableDLL = ExecutableCode = "";
             PvalName = PvalCommand = "";
         }
 
@@ -53,14 +53,21 @@ namespace MetadataApiServer.Models
             }
         }
 
-        public string Type          { get; set; }
-        public string Action        { get; set; }
-        public string Parameters    { get; set; }
-        public string Payload       { get; set; }
-        public string ExecutableDLL { get; set; }
+        public string Type           { get; set; }
+        public string Action         { get; set; }
+        public string Parameters     { get; set; }
+        public string Payload        { get; set; }
+        public string ExecutableDLL  { get; set; }
+        public string ExecutableCode { get; set; }
 
-        public string PvalName      { get; set; }
-        public string PvalCommand   { get; set; }
+        public string PvalName       { get; set; }
+        public string PvalCommand    { get; set; }
+
+        private void Init()
+        {
+            Type     = Action = Parameters = Payload = ExecutableDLL = ExecutableCode = "";
+            PvalName = PvalCommand = "";
+        }
 
         private static bool IsNullableType(Type type)
         {
