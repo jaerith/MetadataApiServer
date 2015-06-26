@@ -41,7 +41,7 @@
   <ItemGroup>
     <Compile Include="IRunnable.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RunnableCompilerFactory.cs" />
+    <Compile Include="RunnableExecutor.cs" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

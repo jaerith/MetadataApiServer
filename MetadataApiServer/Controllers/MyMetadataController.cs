@@ -1,19 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.CodeDom.Compiler;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Reflection;
 using System.Text;
 using System.Web.Http;
 
 using MetadataApiCommon;
 using MetadataApiServer.Models;
 
-using Microsoft.CSharp;
 using Microsoft.WindowsAzure;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.ServiceRuntime;
@@ -119,47 +116,16 @@ FROM
 
         private List<Dictionary<string, string>> CompileAndExecuteCode(string UrlParameters, string ExecCode, List<Dictionary<string, string>> Body)
         {
-            var AssemblyNames = (from a in AppDomain.CurrentDomain.GetAssemblies()
-                                 where !a.IsDynamic
-                                 select a.Location).ToArray();
+            bool bSafeMode = false;
 
-            CSharpCodeProvider provider   = new CSharpCodeProvider();
-            CompilerParameters parameters = new CompilerParameters(AssemblyNames);
-
-            // parameters.ReferencedAssemblies.Add("MetadataCommonApi.dll");
-
-            parameters.GenerateInMemory   = true;
-            parameters.GenerateExecutable = false;
-
-            CompilerResults results = provider.CompileAssemblyFromSource(parameters, ExecCode);
-
-            if (results.Errors.HasErrors)
+            // NOTE: The "CompileAndExecuteCodeSafe()" method does not work yet
+            if (bSafeMode)
+                return RunnableExecutor.CompileAndExecuteCodeSafe(UrlParameters, ExecCode, Body);
+            else
             {
-                StringBuilder sb = new StringBuilder();
-
-                foreach (CompilerError error in results.Errors)
-                    sb.AppendLine(String.Format("Error ({0}): {1}", error.ErrorNumber, error.ErrorText));
-
-                throw new InvalidOperationException(sb.ToString());
+                RunnableExecutor executor = new RunnableExecutor();
+                return executor.CompileAndExecuteCode(UrlParameters, ExecCode, Body);
             }
-
-            Assembly assembly = results.CompiledAssembly;
-
-            /*
-            int        StartIndex   = ExecCode.IndexOf(CONST_CLASS_NAME_START_IND) + CONST_CLASS_NAME_START_IND.Length;
-            int        EndIndex     = ExecCode.IndexOf(CONST_CLASS_NAME_END_IND, StartIndex);
-            string     ClassName    = ExecCode.Substring(StartIndex, (EndIndex - StartIndex)).Trim();
-
-            Type       RunnableType = assembly.GetType(ClassName);
-             */
-
-            var typesInAssembly = assembly.GetTypes();
-
-            var type = typesInAssembly.First();
-
-            // MethodInfo runMethod = instance.GetMethod("Run");
-
-            return InvokeRunnable(type, Body);
         }
 
         private string GetAction(List<Dictionary<string, string>> body) { return body[0]["name"]; }
@@ -239,48 +205,11 @@ FROM
 
         private string GetFileContents(MetadataItem item, List<Dictionary<string, string>> body) { return "<value>TESTING789</value>"; }
 
-        private List<Dictionary<string, string>> InvokeRunnable(Type runnableType, List<Dictionary<string, string>> Body)
-        {
-            List<Dictionary<string, string>> oResultBody = new List<Dictionary<string, string>>();
-
-            //create instance
-            var runnable = Activator.CreateInstance(runnableType) as IRunnable;
-
-            if (runnable == null) throw new Exception("broke");
-
-            oResultBody = runnable.Run(Body);
-
-            return oResultBody;
-        }
-
         private List<Dictionary<string, string>> LoadAndExecuteDLL(string Parameters, string ExecDLL, List<Dictionary<string, string>> Body)
         {
             var MDRoot = RoleEnvironment.GetConfigurationSettingValue("MetadataRootFileSystem");
 
-            List<Dictionary<string, string>> oResultBody = new List<Dictionary<string, string>>();
-
-            var ExecDllFilepath = MDRoot + "\\" + ExecDLL;
-
-            var asm = Assembly.LoadFile(ExecDllFilepath);
-
-            /*
-             * OLD WAY
-             * 
-            // var DllInfo = new FileInfo(ExecDllFilepath);
-
-            var typeName = Path.GetFileNameWithoutExtension(ExecDllFilepath);
-            var type     = asm.GetType(typeName);
-
-            var runnable = Activator.CreateInstance(
-            var runnable = Activator.CreateInstance(type) as IRunnable;
-             */
-
-            //get types from assembly
-            var typesInAssembly = asm.GetTypes();
-
-            var type = typesInAssembly.First();
-
-            return InvokeRunnable(type, Body);
+            return RunnableExecutor.LoadAndExecuteDLL(MDRoot, Parameters, ExecDLL, Body);
         }
 
         private static void PullCache()
