@@ -34,3 +34,7 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
+
+// Needed by the "Sandbox" AppDomain in order to invoke Runnable interface of the loaded class
+// [assembly: System.Security.SecurityRules(System.Security.SecurityRuleSet.Level2, SkipVerificationInFullTrust = true)]
+[assembly: System.Security.SecurityRules(System.Security.SecurityRuleSet.Level1)]

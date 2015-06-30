@@ -77,7 +77,7 @@ FROM
                     response = Request.CreateResponse<List<Dictionary<string, string>>>(HttpStatusCode.OK, respBody);
                 }
             }
-            else if (action == "dynamicCommand")
+            else if (action == "executeDynamic")
             {
                 if (ValidateParamaters(item.Parameters, body))
                 {
@@ -116,7 +116,7 @@ FROM
 
         private List<Dictionary<string, string>> CompileAndExecuteCode(string UrlParameters, string ExecCode, List<Dictionary<string, string>> Body)
         {
-            bool bSafeMode = false;
+            bool bSafeMode = (GetMode(Body) == "safe");
 
             // NOTE: The "CompileAndExecuteCodeSafe()" method does not work yet
             if (bSafeMode)
@@ -171,6 +171,14 @@ FROM
 
         private string GetMetadata() { return "<payload>RAW METADATA</payload>"; }
 
+        private string GetMode(List<Dictionary<string, string>> body)
+        {
+            if (body[0].ContainsKey("mode"))
+                return body[0]["mode"];
+            else
+                return "";
+        }
+
         private string GetNavPayload(MetadataItem item, string param1) 
         {
             var NavPayload     = "<value>TESTING123</value>";
@@ -207,9 +215,13 @@ FROM
 
         private List<Dictionary<string, string>> LoadAndExecuteDLL(string Parameters, string ExecDLL, List<Dictionary<string, string>> Body)
         {
-            var MDRoot = RoleEnvironment.GetConfigurationSettingValue("MetadataRootFileSystem");
+            bool bSafeMode = (GetMode(Body) == "safe");
+            var  MDRoot    = RoleEnvironment.GetConfigurationSettingValue("MetadataRootFileSystem");
 
-            return RunnableExecutor.LoadAndExecuteDLL(MDRoot, Parameters, ExecDLL, Body);
+            if (bSafeMode)
+                return RunnableExecutor.LoadAndExecuteDLLSafe(MDRoot, Parameters, ExecDLL, Body);
+            else 
+                return RunnableExecutor.LoadAndExecuteDLL(MDRoot, Parameters, ExecDLL, Body);
         }
 
         private static void PullCache()

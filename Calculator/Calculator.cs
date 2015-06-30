@@ -8,7 +8,7 @@ using MetadataApiCommon;
 
 namespace Calculator
 {
-    public class Calculator : IRunnable
+    public class Calculator : MarshalByRefObject, IRunnable
     {
         public Calculator() {}
 

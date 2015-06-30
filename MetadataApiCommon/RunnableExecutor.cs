@@ -13,6 +13,8 @@ using System.Threading;
 
 using Microsoft.CSharp;
 
+// This assembly attribute is needed for dynamic compilation/execution within a secure domain
+[assembly: AllowPartiallyTrustedCallers]
 namespace MetadataApiCommon
 {
     public class RunnableExecutor : MarshalByRefObject
@@ -20,16 +22,10 @@ namespace MetadataApiCommon
         public RunnableExecutor()
         {}
 
-        public List<Dictionary<string, string>> CompileAndExecuteCode(string UrlParameters, string ExecCode, List<Dictionary<string, string>> Body)
+        public static Assembly CompileCode(string ExecCode, string[] Assemblies)
         {
-            // var sandboxDomain = RunnableExecutor.ProduceSecureDomain();
-
-            var AssemblyNames = (from a in AppDomain.CurrentDomain.GetAssemblies()
-                                 where !a.IsDynamic
-                                 select a.Location).ToArray();
-
             CSharpCodeProvider provider   = new CSharpCodeProvider();
-            CompilerParameters parameters = new CompilerParameters(AssemblyNames);
+            CompilerParameters parameters = new CompilerParameters(Assemblies);
 
             // parameters.ReferencedAssemblies.Add("MetadataCommonApi.dll");
 
@@ -50,14 +46,36 @@ namespace MetadataApiCommon
 
             Assembly assembly = results.CompiledAssembly;
 
-            /*
-            int        StartIndex   = ExecCode.IndexOf(CONST_CLASS_NAME_START_IND) + CONST_CLASS_NAME_START_IND.Length;
-            int        EndIndex     = ExecCode.IndexOf(CONST_CLASS_NAME_END_IND, StartIndex);
-            string     ClassName    = ExecCode.Substring(StartIndex, (EndIndex - StartIndex)).Trim();
-            Type       RunnableType = assembly.GetType(ClassName);
-             */
+            return assembly;
+        }
 
-            var typesInAssembly = assembly.GetTypes();
+        public List<Dictionary<string, string>> CompileAndExecuteCode(string                           UrlParameters, 
+                                                                      string                           ExecCode, 
+                                                                      List<Dictionary<string, string>> Body)
+        {
+            var AssemblyNames = (from a in AppDomain.CurrentDomain.GetAssemblies()
+                                 where !a.IsDynamic
+                                 select a.Location).ToArray();
+
+            return CompileAndExecuteCode(UrlParameters, ExecCode, Body, AssemblyNames);
+
+        }
+
+        public List<Dictionary<string, string>> CompileAndExecuteCode(string                           UrlParameters, 
+                                                                      string                           ExecCode, 
+                                                                      List<Dictionary<string, string>> Body,
+                                                                      string[]                         Assemblies)
+        {
+            Assembly dynamicAssembly = RunnableExecutor.CompileCode(ExecCode, Assemblies);
+
+            /*
+int        StartIndex   = ExecCode.IndexOf(CONST_CLASS_NAME_START_IND) + CONST_CLASS_NAME_START_IND.Length;
+int        EndIndex     = ExecCode.IndexOf(CONST_CLASS_NAME_END_IND, StartIndex);
+string     ClassName    = ExecCode.Substring(StartIndex, (EndIndex - StartIndex)).Trim();
+Type       RunnableType = assembly.GetType(ClassName);
+ */
+
+            var typesInAssembly = dynamicAssembly.GetTypes();
 
             var type = typesInAssembly.First();
 
@@ -66,27 +84,88 @@ namespace MetadataApiCommon
             return RunnableExecutor.InvokeRunnable(type, Body);
         }
 
-        public static List<Dictionary<string, string>> CompileAndExecuteCodeSafe(string UrlParameters, string ExecCode, List<Dictionary<string, string>> Body)
+        public static List<Dictionary<string, string>> CompileAndExecuteCodeSafe(string                           UrlParameters, 
+                                                                                 string                           ExecCode, 
+                                                                                 List<Dictionary<string, string>> Body)
         {
-            AppDomain domain = null;
+            AppDomain sandbox = null;
 
             try
             {
-                AppDomain root = AppDomain.CurrentDomain;
+                string targetAssemblyPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase;
 
-                AppDomainSetup setup = new AppDomainSetup() { ApplicationBase = root.SetupInformation.ApplicationBase };
+                var assemblyNames = (from a in AppDomain.CurrentDomain.GetAssemblies()
+                                      where !a.IsDynamic
+                                      select a.Location).ToArray();
+
+                Assembly dynamicAssembly = RunnableExecutor.CompileCode(ExecCode, assemblyNames);
+
+                foreach (string tmpAssembly in assemblyNames)
+                {
+                    if (tmpAssembly.Contains("MetadataApiCommon"))
+                    {
+                        targetAssemblyPath = tmpAssembly;
+                        break;
+                    }
+                }
+
+                /*
+                 * 
+                AppDomainSetup setup = new AppDomainSetup() { ApplicationBase = Path.GetDirectoryName(targetAssemblyPath) };
 
                 domain = AppDomain.CreateDomain("Sandbox", null, setup);
+                 */
 
-                RunnableExecutor runnableExecutor = (RunnableExecutor) domain.CreateInstanceFromAndUnwrap("MetadataApiCommon.dll", "MetadataApiCommon.RunnableExecutor");
+                // sandbox = ProduceSecureDomain(targetAssemblyPath);
+                sandbox = ProduceSecureDomain( new string[] { targetAssemblyPath, GetAssemblyDirectory(dynamicAssembly) } );
 
-                return runnableExecutor.CompileAndExecuteCode(UrlParameters, ExecCode, Body);
+                /*
+                 * 
+                foreach (string tmpAssembly in assemblyNames)
+                    sandbox.Load(tmpAssembly);
+                 */
+
+                var typesInAssembly = dynamicAssembly.GetTypes();
+
+                var type = typesInAssembly.First();
+
+                RunnableExecutor runnableExecutor =
+                    (RunnableExecutor)sandbox.CreateInstanceFromAndUnwrap(targetAssemblyPath, "MetadataApiCommon.RunnableExecutor");
+
+                // MethodInfo runMethod = instance.GetMethod("Run");
+
+                return runnableExecutor.ExecuteRunnable(type, Body);
             }
             finally
             {
-                if (domain != null)
-                    AppDomain.Unload(domain);
+                if (sandbox != null)
+                    AppDomain.Unload(sandbox);
             }
+        }
+
+        public List<Dictionary<string, string>> ExecuteRunnable(Type runnableType, List<Dictionary<string, string>> Body)
+        {
+            List<Dictionary<string, string>> oResultBody = new List<Dictionary<string, string>>();
+
+            //create instance
+            var runnable = Activator.CreateInstance(runnableType) as IRunnable;
+
+            if (runnable == null) throw new Exception("broke");
+
+            oResultBody = runnable.Run(Body);
+
+            return oResultBody;
+        }
+
+        public static string GetAssemblyDirectory(Assembly targetAssembly)
+        {
+            string codeBase = targetAssembly.CodeBase;
+
+            UriBuilder uri = new UriBuilder(codeBase);
+
+            string path = Uri.UnescapeDataString(uri.Path);
+
+            return Path.GetDirectoryName(path);
         }
 
         public static List<Dictionary<string, string>> InvokeRunnable(Type runnableType, List<Dictionary<string, string>> Body)
@@ -103,32 +182,55 @@ namespace MetadataApiCommon
             return oResultBody;
         }
 
-        public static List<Dictionary<string, string>> LoadAndExecuteDLL(string RootPath, string Parameters, string ExecDLL, List<Dictionary<string, string>> Body)
+        public static List<Dictionary<string, string>> LoadAndExecuteDLL(string                           RootPath, 
+                                                                         string                           Parameters, 
+                                                                         string                           ExecDLL, 
+                                                                         List<Dictionary<string, string>> Body)
         {
-            List<Dictionary<string, string>> oResultBody = new List<Dictionary<string, string>>();
+            var       ExecDllFilepath = RootPath + "\\" + ExecDLL;
+            var       oResultBody     = new List<Dictionary<string, string>>();
+            AppDomain domain          = null;
 
+            try
+            {
+
+                var asm = Assembly.LoadFile(ExecDllFilepath);
+
+                //get types from assembly
+                var typesInAssembly = asm.GetTypes();
+
+                var type = typesInAssembly.First();
+
+                return RunnableExecutor.InvokeRunnable(type, Body);
+            }
+            finally
+            {
+                if (domain != null)
+                    AppDomain.Unload(domain);
+            }
+        }
+
+        public static List<Dictionary<string, string>> LoadAndExecuteDLLSafe(string                           RootPath, 
+                                                                             string                           Parameters, 
+                                                                             string                           ExecDLL, 
+                                                                             List<Dictionary<string, string>> Body)
+        {
             var ExecDllFilepath = RootPath + "\\" + ExecDLL;
 
-            var asm = Assembly.LoadFile(ExecDllFilepath);
+            List<Dictionary<string, string>> oResultBody = new List<Dictionary<string, string>>();
 
-            /*
-             * OLD WAY
-             * 
-            // var DllInfo = new FileInfo(ExecDllFilepath);
+            var asm     = Assembly.LoadFile(ExecDllFilepath);
+            var type    = asm.GetTypes().First();
+            var sandbox = ProduceSecureDomain(ExecDllFilepath);
 
-            var typeName = Path.GetFileNameWithoutExtension(ExecDllFilepath);
-            var type     = asm.GetType(typeName);
+            var runnable = 
+                sandbox.CreateInstanceFromAndUnwrap(ExecDllFilepath, type.Namespace + "." + type.Name) as IRunnable;
 
-            var runnable = Activator.CreateInstance(
-            var runnable = Activator.CreateInstance(type) as IRunnable;
-             */
+            if (runnable == null) throw new Exception("broke");
 
-            //get types from assembly
-            var typesInAssembly = asm.GetTypes();
+            oResultBody = runnable.Run(Body);
 
-            var type = typesInAssembly.First();
-
-            return RunnableExecutor.InvokeRunnable(type, Body);
+            return oResultBody;
         }
 
         public static IRunnable ProduceRunnableClass(string CodeBlock)
@@ -138,11 +240,21 @@ namespace MetadataApiCommon
             return oRunnableCodeClass;
         }
 
-        /*
-         * NOTE: This method needs some work
-         * 
-        public static AppDomain ProduceSecureDomain()
+        public static AppDomain ProduceSecureDomain(string ExecDllPath)
         {
+            return ProduceSecureDomain(ExecDllPath);
+        }
+
+        public static AppDomain ProduceSecureDomain(params string[] DllPaths)
+        {
+            string tempPath = null;
+
+            HashSet<string> AccessDirectories = new HashSet<string>();
+
+            var assemblyNames = (from a in AppDomain.CurrentDomain.GetAssemblies()
+                                 where !a.IsDynamic
+                                 select a.Location).ToArray();
+
             var adSetup = new AppDomainSetup()
             {
                 ApplicationBase = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tmp"),
@@ -152,10 +264,24 @@ namespace MetadataApiCommon
                 DisallowPublisherPolicy = true
             };
 
-            // adSetup.ApplicationBase = "C:\\tmp";
+            AccessDirectories.Add(AppDomain.CurrentDomain.SetupInformation.ApplicationBase);
+            AccessDirectories.Add(AppDomain.CurrentDomain.BaseDirectory);
+            foreach (string tmpDllPath in DllPaths)
+                AccessDirectories.Add(tmpDllPath);
+
+            foreach (string tempAssembly in assemblyNames)
+            {
+                if (!String.IsNullOrEmpty(tempPath))
+                {
+                    tempPath = Path.GetDirectoryName(tempAssembly);
+                    AccessDirectories.Add(tempPath);
+                }
+            }
 
             PermissionSet permSet = new PermissionSet(PermissionState.None);
             permSet.AddPermission(new SecurityPermission(SecurityPermissionFlag.Execution));
+            // permSet.AddPermission(new ReflectionPermission(ReflectionPermissionFlag.RestrictedMemberAccess));
+            permSet.AddPermission(new FileIOPermission(FileIOPermissionAccess.AllAccess, AccessDirectories.ToArray()));
 
             StrongName fullTrustAssembly = typeof(RunnableExecutor).Assembly.Evidence.GetHostEvidence<StrongName>();
 
@@ -163,6 +289,5 @@ namespace MetadataApiCommon
 
             return secureDomain;
         }
-         */
     }
 }

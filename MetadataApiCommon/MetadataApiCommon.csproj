@@ -29,6 +29,12 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>MetadataCommonApi_ASK_Beta_01.pfx</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -47,6 +53,7 @@
   <ItemGroup>
     <None Include="Data\directory.json" />
     <None Include="Data\main.json" />
+    <None Include="MetadataCommonApi_ASK_Beta_01.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Scripts\ServerMetadata.sql" />
