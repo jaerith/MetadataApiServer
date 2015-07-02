@@ -96,7 +96,10 @@ namespace MetadataApiCommon
                     // additionalAssemblyDirs.Add(Path.GetDirectoryName(tmpAssembly));
 
                     if (tmpAssembly.Contains("MetadataApiCommon"))
+                    {
                         targetAssemblyPath = tmpAssembly;
+                        additionalAssemblyDirs.Add(Path.GetDirectoryName(targetAssemblyPath));
+                    }
                 }
 
                 Assembly dynamicAssembly = RunnableExecutor.CompileCode(ExecCode, assemblyNames, false);
@@ -133,12 +136,19 @@ namespace MetadataApiCommon
 
                 var type = typesInAssembly.First();
 
+                IRunnable runnable =
+                    sandbox.CreateInstanceFromAndUnwrap(GetAssemblyPath(dynamicAssembly), type.FullName) as IRunnable;
+
+                return runnable.Run(Body);
+
+                /*
                 RunnableExecutor runnableExecutor =
-                    (RunnableExecutor)sandbox.CreateInstanceFromAndUnwrap(targetAssemblyPath, "MetadataApiCommon.RunnableExecutor");
+                    (RunnableExecutor)sandbox.CreateInstanceFromAndUnwrap(targetAssemblyPath, "MetadataApiCommon.RunnableExecutor") as ;
 
                 // MethodInfo runMethod = instance.GetMethod("Run");
 
                 return runnableExecutor.ExecuteRunnable(type, Body);
+                 */
             }
             finally
             {
@@ -163,13 +173,20 @@ namespace MetadataApiCommon
 
         public static string GetAssemblyDirectory(Assembly targetAssembly)
         {
+            string path = GetAssemblyPath(targetAssembly);
+
+            return Path.GetDirectoryName(path);
+        }
+
+        public static string GetAssemblyPath(Assembly targetAssembly)
+        {
             string codeBase = targetAssembly.CodeBase;
 
             UriBuilder uri = new UriBuilder(codeBase);
 
             string path = Uri.UnescapeDataString(uri.Path);
 
-            return Path.GetDirectoryName(path);
+            return path;
         }
 
         public static List<Dictionary<string, string>> InvokeRunnable(Type runnableType, List<Dictionary<string, string>> Body)
@@ -246,7 +263,7 @@ namespace MetadataApiCommon
 
         public static AppDomain ProduceSecureDomain(string ExecDllPath)
         {
-            return ProduceSecureDomain(ExecDllPath);
+            return ProduceSecureDomain(new string[] { ExecDllPath });
         }
 
         public static AppDomain ProduceSecureDomain(params string[] DllPaths)
@@ -275,7 +292,7 @@ namespace MetadataApiCommon
 
             foreach (string tempAssembly in assemblyNames)
             {
-                if (!String.IsNullOrEmpty(tempPath))
+                if (!String.IsNullOrEmpty(tempAssembly))
                 {
                     tempPath = Path.GetDirectoryName(tempAssembly);
                     AccessDirectories.Add(tempPath);
