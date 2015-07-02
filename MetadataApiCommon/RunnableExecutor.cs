@@ -22,14 +22,14 @@ namespace MetadataApiCommon
         public RunnableExecutor()
         {}
 
-        public static Assembly CompileCode(string ExecCode, string[] Assemblies)
+        public static Assembly CompileCode(string ExecCode, string[] Assemblies, bool InMemory = true)
         {
             CSharpCodeProvider provider   = new CSharpCodeProvider();
             CompilerParameters parameters = new CompilerParameters(Assemblies);
 
             // parameters.ReferencedAssemblies.Add("MetadataCommonApi.dll");
 
-            parameters.GenerateInMemory   = true;
+            parameters.GenerateInMemory   = InMemory;
             parameters.GenerateExecutable = false;
 
             CompilerResults results = provider.CompileAssemblyFromSource(parameters, ExecCode);
@@ -68,18 +68,9 @@ namespace MetadataApiCommon
         {
             Assembly dynamicAssembly = RunnableExecutor.CompileCode(ExecCode, Assemblies);
 
-            /*
-int        StartIndex   = ExecCode.IndexOf(CONST_CLASS_NAME_START_IND) + CONST_CLASS_NAME_START_IND.Length;
-int        EndIndex     = ExecCode.IndexOf(CONST_CLASS_NAME_END_IND, StartIndex);
-string     ClassName    = ExecCode.Substring(StartIndex, (EndIndex - StartIndex)).Trim();
-Type       RunnableType = assembly.GetType(ClassName);
- */
-
             var typesInAssembly = dynamicAssembly.GetTypes();
 
             var type = typesInAssembly.First();
-
-            // MethodInfo runMethod = instance.GetMethod("Run");
 
             return RunnableExecutor.InvokeRunnable(type, Body);
         }
@@ -90,6 +81,8 @@ Type       RunnableType = assembly.GetType(ClassName);
         {
             AppDomain sandbox = null;
 
+            HashSet<string> additionalAssemblyDirs = new HashSet<string>();
+
             try
             {
                 string targetAssemblyPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase;
@@ -98,16 +91,17 @@ Type       RunnableType = assembly.GetType(ClassName);
                                       where !a.IsDynamic
                                       select a.Location).ToArray();
 
-                Assembly dynamicAssembly = RunnableExecutor.CompileCode(ExecCode, assemblyNames);
-
                 foreach (string tmpAssembly in assemblyNames)
                 {
+                    // additionalAssemblyDirs.Add(Path.GetDirectoryName(tmpAssembly));
+
                     if (tmpAssembly.Contains("MetadataApiCommon"))
-                    {
                         targetAssemblyPath = tmpAssembly;
-                        break;
-                    }
                 }
+
+                Assembly dynamicAssembly = RunnableExecutor.CompileCode(ExecCode, assemblyNames, false);
+
+                additionalAssemblyDirs.Add(RunnableExecutor.GetAssemblyDirectory(dynamicAssembly));
 
                 /*
                  * 
@@ -117,12 +111,22 @@ Type       RunnableType = assembly.GetType(ClassName);
                  */
 
                 // sandbox = ProduceSecureDomain(targetAssemblyPath);
-                sandbox = ProduceSecureDomain( new string[] { targetAssemblyPath, GetAssemblyDirectory(dynamicAssembly) } );
+                sandbox = ProduceSecureDomain(additionalAssemblyDirs.ToArray());
 
                 /*
-                 * 
-                foreach (string tmpAssembly in assemblyNames)
-                    sandbox.Load(tmpAssembly);
+                byte[] assemblyAsArray = null;
+                using (MemoryStream stream = new MemoryStream())
+                {
+                    System.Runtime.Serialization.Formatters.Binary.BinaryFormatter formatter =
+                        new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+
+                    formatter.Serialize(stream, dynamicAssembly);
+
+                    assemblyAsArray = stream.ToArray();
+                }
+
+                if (assemblyAsArray != null)
+                    sandbox.Load(assemblyAsArray);
                  */
 
                 var typesInAssembly = dynamicAssembly.GetTypes();
