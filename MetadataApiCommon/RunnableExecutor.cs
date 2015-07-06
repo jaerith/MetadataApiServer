@@ -22,6 +22,15 @@ namespace MetadataApiCommon
         public RunnableExecutor()
         {}
 
+        /// <summary>
+        /// 
+        ///     This code compiles a block of code into an assembly, in order to execute and fulfill a request by the server.
+        ///     
+        /// </summary>
+        /// <param name="ExecCode">The code to be compiled and assembled into an assembly</param>
+        /// <param name="Assemblies">Any other assemblies needed for successful compilation</param>
+        /// <param name="InMemory">Indicates whether the compilation should store the assembly in memory or to the local filesystem</param>
+        /// <returns>The compiled Assembly of the provided code</returns>
         public static Assembly CompileCode(string ExecCode, string[] Assemblies, bool InMemory = true)
         {
             CSharpCodeProvider provider   = new CSharpCodeProvider();
@@ -49,6 +58,15 @@ namespace MetadataApiCommon
             return assembly;
         }
 
+        /// <summary>
+        /// 
+        ///     This code compiles a block of code into an Assembly and then executes it.
+        ///     
+        /// </summary>
+        /// <param name="UrlParameters">Parameters that might be needed in the future</param>
+        /// <param name="ExecCode">The code to be compiled and assembled into an assembly</param>
+        /// <param name="Body">The values needed by the code in order to successfully execute the code</param>
+        /// <returns>The value(s) sought by the caller and returned by the compiled code block</returns>
         public List<Dictionary<string, string>> CompileAndExecuteCode(string                           UrlParameters, 
                                                                       string                           ExecCode, 
                                                                       List<Dictionary<string, string>> Body)
@@ -58,9 +76,19 @@ namespace MetadataApiCommon
                                  select a.Location).ToArray();
 
             return CompileAndExecuteCode(UrlParameters, ExecCode, Body, AssemblyNames);
-
         }
 
+        /// <summary>
+        /// 
+        ///     This code compiles a block of code into an Assembly, finds the first type in the Assembly with the IRunnable type,
+        ///     and then instantiates and executes that class.
+        ///     
+        /// </summary>
+        /// <param name="UrlParameters">Parameters that might be needed in the future</param>
+        /// <param name="ExecCode">The code to be compiled and assembled into an assembly</param>
+        /// <param name="Body">The values needed by the code in order to successfully execute the code</param>
+        /// <param name="Assemblies">Any other assemblies needed for successful compilation</param>
+        /// <returns>The value(s) sought by the caller and returned by the compiled code block</returns>
         public List<Dictionary<string, string>> CompileAndExecuteCode(string                           UrlParameters, 
                                                                       string                           ExecCode, 
                                                                       List<Dictionary<string, string>> Body,
@@ -75,6 +103,18 @@ namespace MetadataApiCommon
             return RunnableExecutor.InvokeRunnable(type, Body);
         }
 
+        /// <summary>
+        /// 
+        ///     This code compiles a block of code into an Assembly, embeds it within a safe Application Domain, 
+        ///     finds the first type in the Assembly with the IRunnable type, and then instantiates and executes that class.
+        ///     
+        ///     UNDER CONSTRUCTION - DOES NOT CURRENTLY WORK
+        /// 
+        /// </summary>
+        /// <param name="UrlParameters">Parameters that might be needed in the future</param>
+        /// <param name="ExecCode">The code to be compiled and assembled into an assembly</param>
+        /// <param name="Body">The values needed by the code in order to successfully execute the code</param>
+        /// <returns>The value(s) sought by the caller and returned by the compiled code block</returns>
         public static List<Dictionary<string, string>> CompileAndExecuteCodeSafe(string                           UrlParameters, 
                                                                                  string                           ExecCode, 
                                                                                  List<Dictionary<string, string>> Body)
@@ -115,6 +155,9 @@ namespace MetadataApiCommon
 
                 // sandbox = ProduceSecureDomain(targetAssemblyPath);
                 sandbox = ProduceSecureDomain(additionalAssemblyDirs.ToArray());
+                // sandbox = ProduceSimpleDomain();
+
+                sandbox.Load(RunnableExecutor.GetAssemblyPath(dynamicAssembly));
 
                 /*
                 byte[] assemblyAsArray = null;
@@ -136,19 +179,21 @@ namespace MetadataApiCommon
 
                 var type = typesInAssembly.First();
 
-                IRunnable runnable =
-                    sandbox.CreateInstanceFromAndUnwrap(GetAssemblyPath(dynamicAssembly), type.FullName) as IRunnable;
+                /*
+                object dynamicObject =
+                    sandbox.CreateInstanceFromAndUnwrap(GetAssemblyPath(dynamicAssembly), type.FullName);
+
+                IRunnable runnable = (IRunnable) dynamicObject;
 
                 return runnable.Run(Body);
+                 */
 
-                /*
                 RunnableExecutor runnableExecutor =
-                    (RunnableExecutor)sandbox.CreateInstanceFromAndUnwrap(targetAssemblyPath, "MetadataApiCommon.RunnableExecutor") as ;
+                    (RunnableExecutor)sandbox.CreateInstanceFromAndUnwrap(targetAssemblyPath, "MetadataApiCommon.RunnableExecutor") as RunnableExecutor;
 
                 // MethodInfo runMethod = instance.GetMethod("Run");
 
                 return runnableExecutor.ExecuteRunnable(type, Body);
-                 */
             }
             finally
             {
@@ -157,6 +202,15 @@ namespace MetadataApiCommon
             }
         }
 
+        /// <summary>
+        /// 
+        ///     This instance member method will instantiate a provided type (that supposedly inherits from IRunnable) and then
+        ///     execute the IRunnable's sole method.
+        ///     
+        /// </summary>
+        /// <param name="Type">Type of IRunnable class to be instantiated</param>
+        /// <param name="Body">The values needed by the IRunnable class in order to successfully execute the code</param>
+        /// <returns>The value(s) sought by the caller and returned by the IRunnable instantiation</returns>
         public List<Dictionary<string, string>> ExecuteRunnable(Type runnableType, List<Dictionary<string, string>> Body)
         {
             List<Dictionary<string, string>> oResultBody = new List<Dictionary<string, string>>();
@@ -171,6 +225,13 @@ namespace MetadataApiCommon
             return oResultBody;
         }
 
+        /// <summary>
+        /// 
+        ///     This code returns the directory of the Assembly file.
+        ///     
+        /// </summary>
+        /// <param name="targetAssembly">The Assembly of interest</param>
+        /// <returns>The directory in which the Assembly resides</returns>
         public static string GetAssemblyDirectory(Assembly targetAssembly)
         {
             string path = GetAssemblyPath(targetAssembly);
@@ -178,6 +239,13 @@ namespace MetadataApiCommon
             return Path.GetDirectoryName(path);
         }
 
+        /// <summary>
+        /// 
+        ///     This code returns the filepath of the Assembly file.
+        ///     
+        /// </summary>
+        /// <param name="targetAssembly">The Assembly of interest</param>
+        /// <returns>The filepath that leads to the Assembly</returns>
         public static string GetAssemblyPath(Assembly targetAssembly)
         {
             string codeBase = targetAssembly.CodeBase;
@@ -189,6 +257,15 @@ namespace MetadataApiCommon
             return path;
         }
 
+        /// <summary>
+        /// 
+        ///     This static member method will instantiate a provided type (that supposedly inherits from IRunnable) and then
+        ///     execute the IRunnable's sole method.
+        ///     
+        /// </summary>
+        /// <param name="Type">Type of IRunnable class to be instantiated</param>
+        /// <param name="Body">The values needed by the IRunnable class in order to successfully execute the code</param>
+        /// <returns>The value(s) sought by the caller and returned by the IRunnable instantiation</returns>
         public static List<Dictionary<string, string>> InvokeRunnable(Type runnableType, List<Dictionary<string, string>> Body)
         {
             List<Dictionary<string, string>> oResultBody = new List<Dictionary<string, string>>();
@@ -203,6 +280,17 @@ namespace MetadataApiCommon
             return oResultBody;
         }
 
+        /// <summary>
+        /// 
+        ///     This code loads the DLL specified, finds the first type in the Assembly with the IRunnable type,
+        ///     and then instantiates and executes that class.
+        ///     
+        /// </summary>
+        /// <param name="RootPath">Directory where the desired DLL is to be found</param>
+        /// <param name="Parameters">Parameters that might be needed in the future</param>
+        /// <param name="ExecDLL">The filename of the desired DLL</param>
+        /// <param name="Body">The values needed by the code in order to successfully execute the request</param>
+        /// <returns>The value(s) sought by the caller and returned by the loaded DLL</returns>
         public static List<Dictionary<string, string>> LoadAndExecuteDLL(string                           RootPath, 
                                                                          string                           Parameters, 
                                                                          string                           ExecDLL, 
@@ -231,6 +319,17 @@ namespace MetadataApiCommon
             }
         }
 
+        /// <summary>
+        /// 
+        ///     This code loads the DLL specified, injects it into a safe Application Domain, 
+        ///     finds the first type in the Assembly with the IRunnable type, and then instantiates and executes that class.
+        ///     
+        /// </summary>
+        /// <param name="RootPath">Directory where the desired DLL is to be found</param>
+        /// <param name="Parameters">Parameters that might be needed in the future</param>
+        /// <param name="ExecDLL">The filename of the desired DLL</param>
+        /// <param name="Body">The values needed by the code in order to successfully execute the request</param>
+        /// <returns>The value(s) sought by the caller and returned by the loaded DLL</returns>
         public static List<Dictionary<string, string>> LoadAndExecuteDLLSafe(string                           RootPath, 
                                                                              string                           Parameters, 
                                                                              string                           ExecDLL, 
@@ -254,11 +353,14 @@ namespace MetadataApiCommon
             return oResultBody;
         }
 
-        public static IRunnable ProduceRunnableClass(string CodeBlock)
+        /// <summary>
+        /// 
+        ///     UNDER CONSTRUCTION
+        ///     
+        /// </summary>
+        public static AppDomain ProduceSimpleDomain()
         {
-            IRunnable oRunnableCodeClass = null;
-
-            return oRunnableCodeClass;
+            return AppDomain.CreateDomain("Sandbox");
         }
 
         public static AppDomain ProduceSecureDomain(string ExecDllPath)
@@ -266,9 +368,20 @@ namespace MetadataApiCommon
             return ProduceSecureDomain(new string[] { ExecDllPath });
         }
 
-        public static AppDomain ProduceSecureDomain(params string[] DllPaths)
+        /// <summary>
+        /// 
+        ///     This function creates an Application Domain that will serve as a secure sandbox for the execution
+        ///     of any dynamically loaded/compiled code.
+        ///     
+        /// </summary>
+        /// <param name="DllPaths">Directories needed for access by the created sandbox</param>
+        /// <param name="UseStandardPermissions">A switch that indicates whether or not to use the .NET standard permission set for a sandbox</param>
+        /// <returns>The Application Domain that will serve as a secure sandbox</returns>
+        public static AppDomain ProduceSecureDomain(string[] DllPaths, bool UseStandardPermissions = false)
         {
-            string tempPath = null;
+            string        tempPath     = null;
+            PermissionSet permSet      = new PermissionSet(PermissionState.None);
+            AppDomain     secureDomain = null;
 
             HashSet<string> AccessDirectories = new HashSet<string>();
 
@@ -299,14 +412,28 @@ namespace MetadataApiCommon
                 }
             }
 
-            PermissionSet permSet = new PermissionSet(PermissionState.None);
-            permSet.AddPermission(new SecurityPermission(SecurityPermissionFlag.Execution));
-            // permSet.AddPermission(new ReflectionPermission(ReflectionPermissionFlag.RestrictedMemberAccess));
-            permSet.AddPermission(new FileIOPermission(FileIOPermissionAccess.AllAccess, AccessDirectories.ToArray()));
+            if (UseStandardPermissions)
+            {
+                Evidence ev = new Evidence();
+                ev.AddHostEvidence(new Zone(SecurityZone.Internet));
 
-            StrongName fullTrustAssembly = typeof(RunnableExecutor).Assembly.Evidence.GetHostEvidence<StrongName>();
+                permSet = SecurityManager.GetStandardSandbox(ev);
 
-            AppDomain secureDomain = AppDomain.CreateDomain("Sandbox", null, adSetup, permSet, fullTrustAssembly);
+                StrongName fullTrustAssembly = typeof(RunnableExecutor).Assembly.Evidence.GetHostEvidence<StrongName>();
+
+                secureDomain = AppDomain.CreateDomain("Sandbox", ev, adSetup, permSet, fullTrustAssembly);
+            }
+            else
+            {
+                permSet = new PermissionSet(PermissionState.None);
+                permSet.AddPermission(new SecurityPermission(SecurityPermissionFlag.Execution));
+                // permSet.AddPermission(new ReflectionPermission(ReflectionPermissionFlag.RestrictedMemberAccess));
+                permSet.AddPermission(new FileIOPermission(FileIOPermissionAccess.AllAccess, AccessDirectories.ToArray()));
+
+                StrongName fullTrustAssembly = typeof(RunnableExecutor).Assembly.Evidence.GetHostEvidence<StrongName>();
+
+                secureDomain = AppDomain.CreateDomain("Sandbox", null, adSetup, permSet, fullTrustAssembly);
+            }
 
             return secureDomain;
         }
