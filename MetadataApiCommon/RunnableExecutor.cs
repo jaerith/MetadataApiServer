@@ -19,6 +19,8 @@ namespace MetadataApiCommon
 {
     public class RunnableExecutor : MarshalByRefObject
     {
+        private const BindingFlags bfi = BindingFlags.Instance | BindingFlags.Public | BindingFlags.CreateInstance;
+
         public RunnableExecutor()
         {}
 
@@ -146,60 +148,30 @@ namespace MetadataApiCommon
 
                 additionalAssemblyDirs.Add(RunnableExecutor.GetAssemblyDirectory(dynamicAssembly));
 
-                /*
-                 * 
-                AppDomainSetup setup = new AppDomainSetup() { ApplicationBase = Path.GetDirectoryName(targetAssemblyPath) };
-
-                domain = AppDomain.CreateDomain("Sandbox", null, setup);
-                 */
-
-                // sandbox = ProduceSecureDomain(targetAssemblyPath);
                 sandbox = ProduceSecureDomain(additionalAssemblyDirs.ToArray());
-                // sandbox = ProduceSimpleDomain();
-
-                sandbox.Load(RunnableExecutor.GetAssemblyPath(dynamicAssembly));
-
-                /*
-                byte[] assemblyAsArray = null;
-                using (MemoryStream stream = new MemoryStream())
-                {
-                    System.Runtime.Serialization.Formatters.Binary.BinaryFormatter formatter =
-                        new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-
-                    formatter.Serialize(stream, dynamicAssembly);
-
-                    assemblyAsArray = stream.ToArray();
-                }
-
-                if (assemblyAsArray != null)
-                    sandbox.Load(assemblyAsArray);
-                 */
 
                 var typesInAssembly = dynamicAssembly.GetTypes();
 
                 var type = typesInAssembly.First();
 
-                /*
-                object dynamicObject =
-                    sandbox.CreateInstanceFromAndUnwrap(GetAssemblyPath(dynamicAssembly), type.FullName);
-
-                IRunnable runnable = (IRunnable) dynamicObject;
-
-                return runnable.Run(Body);
-                 */
-
                 RunnableExecutor runnableExecutor =
                     (RunnableExecutor)sandbox.CreateInstanceFromAndUnwrap(targetAssemblyPath, "MetadataApiCommon.RunnableExecutor") as RunnableExecutor;
 
-                // MethodInfo runMethod = instance.GetMethod("Run");
+                IRunnable runnable = runnableExecutor.Create(GetAssemblyPath(dynamicAssembly), type.FullName, null);
 
-                return runnableExecutor.ExecuteRunnable(type, Body);
+                return runnable.Run(Body);
             }
             finally
             {
                 if (sandbox != null)
                     AppDomain.Unload(sandbox);
             }
+        }
+
+        public IRunnable Create(string assemblyFile, string typeName, object[] constructArgs)
+        {
+            return (IRunnable)
+               Activator.CreateInstanceFrom(assemblyFile, typeName, false, bfi, null, constructArgs, null, null, null).Unwrap();
         }
 
         /// <summary>

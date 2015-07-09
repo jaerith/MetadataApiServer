@@ -161,7 +161,6 @@ FROM
         {
             bool bSafeMode = (GetMode(Body) == "safe");
 
-            // NOTE: The "CompileAndExecuteCodeSafe()" method does not work yet
             if (bSafeMode)
                 return RunnableExecutor.CompileAndExecuteCodeSafe(UrlParameters, ExecCode, Body);
             else
