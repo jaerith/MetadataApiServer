@@ -1,5 +1,15 @@
 [
   {
+    "title" : "Calculate",
+	"nextController" : "DisplayResults",
+    "numberOfLines" : 3,
+	"textColor" : "grayColor",
+	"font" : "systemFontOfSize:12",	
+	"enabled" : true,
+    "action" : "executeCommand",
+    "command" : "calculate"
+  },
+  {
     "title" : "Read Files",
 	"nextController" : "CustomDirectoryController",
     "numberOfLines" : 3,
