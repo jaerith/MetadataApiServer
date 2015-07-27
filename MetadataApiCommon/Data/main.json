@@ -10,20 +10,14 @@
     "command" : "calculate"
   },
   {
-    "title" : "Read Files",
+    "title" : "Get File List",
 	"nextController" : "CustomDirectoryController",
     "numberOfLines" : 3,
 	"textColor" : "grayColor",
 	"font" : "systemFontOfSize:12",	
 	"enabled" : true,
-  },
-  {
-    "title" : "Save Files",
-	"nextController": "CustomDirectoryController",
-    "numberOfLines" : 3,
-	"textColor" : "grayColor",
-	"font" : "systemFontOfSize:12",	
-	"enabled" : true
+    "action" : "getFileList",
+    "name" : "{user}"
   },
   {
     "title" : "Advanced Settings",
